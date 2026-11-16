@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0d1b3d">
+<title>Calendário 10uilton</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; user-select:none; }
+  html,body { height:100%; overflow:hidden; font-family:'Segoe UI',Arial,sans-serif; }
+
+  #bg {
+    position:fixed; inset:0; z-index:0;
+    transition: background 3s ease;
+  }
+  .bg-day {
+    background: linear-gradient(180deg,#3a6ea5 0%,#7ec8e3 55%,#cfe9c9 100%);
+  }
+  .bg-night {
+    background: linear-gradient(180deg,#050815 0%,#0d1b3d 55%,#1a2a52 100%);
+  }
+  .stars {
+    position:fixed; inset:0; z-index:1; opacity:0; transition:opacity 3s ease; pointer-events:none;
+  }
+  .stars.show { opacity:1; }
+  .star {
+    position:absolute; width:2px; height:2px; background:#fff; border-radius:50%;
+    animation: twinkle 3s infinite ease-in-out;
+  }
+  @keyframes twinkle { 0%,100%{opacity:.2;} 50%{opacity:1;} }
+
+  .sun {
+    position:fixed; z-index:1; width:70px; height:70px; border-radius:50%;
+    background: radial-gradient(circle,#fff5c8 0%,#ffe27a 40%,#ffb84d 100%);
+    top:8%; left:50%;
+    opacity:0; transition:opacity 3s ease;
+    animation: sunPulse 3.5s ease-in-out infinite;
+  }
+  .sun.show { opacity:1; }
+  @keyframes sunPulse {
+    0%,100% {
+      box-shadow:0 0 55px 18px rgba(255,210,90,.55);
+      transform:translateX(-50%) scale(1);
+    }
+    50% {
+      box-shadow:0 0 85px 32px rgba(255,210,90,.9);
+      transform:translateX(-50%) scale(1.06);
+    }
+  }
+  .moon {
+    position:fixed; z-index:1; width:55px; height:55px; border-radius:50%;
+    background: radial-gradient(circle at 35% 35%,#f5f5f0 0%,#d8d8d0 60%,#a8a8a0 100%);
+    top:8%; left:50%;
+    opacity:0; transition:opacity 3s ease;
+    animation: moonLive 5s ease-in-out infinite;
+  }
+  .moon.show { opacity:1; }
+  @keyframes moonLive {
+    0%,100% {
+      box-shadow:0 0 35px 10px rgba(230,230,255,.3);
+      transform:translateX(-50%) translateY(0);
+    }
+    50% {
+      box-shadow:0 0 55px 20px rgba(230,230,255,.55);
+      transform:translateX(-50%) translateY(-6px);
+    }
+  }
+
+  #app {
+    position:relative; z-index:2; height:100%;
+    display:flex; flex-direction:column; align-items:center;
+    padding: 18px 14px 10px;
+  }
+
+  .topbar {
+    width:100%; max-width:440px;
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:6px;
+  }
+  .icon-btn {
+    width:44px; height:44px; border-radius:50%;
+    background:rgba(255,255,255,.15);
+    border:1px solid rgba(255,255,255,.35);
+    backdrop-filter: blur(4px);
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:20px; cursor:pointer;
+  }
+  .icon-btn:active { background:rgba(255,255,255,.3); }
+
+  .today-btn {
+    background:linear-gradient(135deg,#ffc24a,#ff7a1a); border:1.5px solid #fff; color:#2a1400;
+    font-size:13px; font-weight:800; letter-spacing:.5px; text-transform:uppercase;
+    cursor:pointer; margin:4px 0 6px; padding:8px 18px; border-radius:999px;
+    visibility:hidden; animation: todayPulse 1.8s ease-in-out infinite;
+  }
+  .today-btn:active { transform:scale(.96); }
+  @keyframes todayPulse {
+    0%,100% { box-shadow:0 0 10px rgba(255,160,40,.6), 0 3px 10px rgba(0,0,0,.35); }
+    50%     { box-shadow:0 0 24px 5px rgba(255,160,40,.95), 0 3px 10px rgba(0,0,0,.35); }
+  }
+  .today-btn.show { visibility:visible; }
+
+  .month-name {
+    font-size:2.5em; font-weight:800; text-align:center;
+    color:#fff; letter-spacing:2px;
+    animation: flicker 4s infinite alternate;
+    transition: text-shadow 3s ease;
+  }
+  .month-name.glow-day {
+    text-shadow:
+      -1.5px -1.5px 0 #000, 1.5px -1.5px 0 #000,
+      -1.5px 1.5px 0 #000, 1.5px 1.5px 0 #000,
+      -1.5px 0 0 #000, 1.5px 0 0 #000,
+      0 -1.5px 0 #000, 0 1.5px 0 #000,
+      0 0 10px #ffe27a, 0 0 20px #ffb84d, 0 0 36px #ff8c1a,
+      0 0 55px #ff8c1a;
+  }
+  .month-name.glow-night {
+    text-shadow:
+      -1.5px -1.5px 0 #000, 1.5px -1.5px 0 #000,
+      -1.5px 1.5px 0 #000, 1.5px 1.5px 0 #000,
+      -1.5px 0 0 #000, 1.5px 0 0 #000,
+      0 -1.5px 0 #000, 0 1.5px 0 #000,
+      0 0 10px #e8e8ff, 0 0 20px #c9c9f5, 0 0 36px #8f8fe0,
+      0 0 55px #8f8fe0;
+  }
+  @keyframes flicker {
+    0%,19%,21%,23%,25%,54%,56%,100% { opacity:1; }
+    20%,24%,55% { opacity:.85; }
+  }
+  .year-label {
+    color:rgba(255,255,255,.75); font-size:.95em; text-align:center;
+    margin-top:-4px; letter-spacing:3px;
+  }
+
+  .calendar-card {
+    width:100%; max-width:440px; flex:1;
+    margin-top:12px;
+    background:rgba(20,15,10,.55);
+    border:1px solid rgba(255,255,255,.15);
+    border-radius:18px;
+    backdrop-filter: blur(6px);
+    display:flex; flex-direction:column;
+    padding:14px 10px 8px;
+    box-shadow:0 8px 30px rgba(0,0,0,.4);
+    position:relative;
+    touch-action: pan-y;
+  }
+
+  /* linhas verticais tipo livro-caixa */
+  .ledger-lines {
+    position:absolute; inset:14px 10px 8px; z-index:0; pointer-events:none;
+    display:flex; justify-content:space-between;
+  }
+  .ledger-lines span {
+    width:1px; height:100%; background:rgba(255,255,255,.06);
+  }
+
+  .weekdays {
+    position:relative; z-index:1;
+    display:grid; grid-template-columns:repeat(7,1fr);
+    margin-bottom:6px;
+  }
+  .weekdays div {
+    text-align:center; font-size:.72em; color:rgba(255,255,255,.55);
+    letter-spacing:1px; font-weight:600;
+  }
+
+  .days-grid {
+    position:relative; z-index:1;
+    display:grid; grid-template-columns:repeat(7,1fr);
+    grid-auto-rows:1fr;
+    flex:1; gap:2px;
+  }
+  .day-cell {
+    position:relative;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+    padding-top:4px; border-radius:8px;
+    color:rgba(255,255,255,.9); font-size:.95em;
+    min-height:44px;
+  }
+  .day-cell.empty { visibility:hidden; }
+  .day-cell.today {
+    background:rgba(255,180,50,.25);
+    box-shadow:0 0 0 1.5px #ffb432 inset, 0 0 12px rgba(255,180,50,.5);
+    font-weight:800; color:#fff;
+  }
+  .day-cell.saturday { color:#4da6ff; }
+  .day-cell.sunday { color:#ff4d4d; }
+  .day-cell.holiday { color:#7effc4; font-weight:700; }
+  .holiday-dot {
+    width:4px; height:4px; border-radius:50%; background:#7effc4;
+    margin-top:2px;
+  }
+  .moon-icon { font-size:.6em; margin-top:1px; opacity:.85; }
+
+  .holiday-tooltip {
+    position:absolute; bottom:100%; left:50%; transform:translateX(-50%);
+    background:#111; color:#fff; font-size:.65em; padding:4px 7px;
+    border-radius:6px; white-space:nowrap; z-index:5;
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
+    pointer-events:none;
+  }
+
+  .search-icon {
+    width:20px; height:20px; position:relative;
+  }
+  .search-icon::before {
+    content:""; position:absolute; top:0; left:0;
+    width:13px; height:13px; border-radius:50%;
+    border:2.5px solid #fff;
+  }
+  .search-icon::after {
+    content:""; position:absolute; bottom:0; right:0;
+    width:8px; height:2.5px; background:#fff;
+    transform:rotate(45deg); border-radius:2px;
+  }
+
+  .holiday-list {
+    width:100%; max-width:440px;
+    margin-top:8px; padding:8px 12px;
+    background:rgba(20,15,10,.4);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:12px;
+    display:none;
+  }
+  .holiday-list.show { display:block; }
+  .holiday-list-title {
+    font-size:.68em; color:rgba(255,255,255,.5);
+    letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;
+  }
+  .holiday-list-item {
+    font-size:.78em; color:#7effc4; line-height:1.5;
+  }
+  .holiday-list-item span {
+    color:rgba(255,255,255,.7); font-weight:600;
+  }
+
+  .footer {
+    margin-top:10px; text-align:center; font-size:.72em;
+    color:rgba(255,255,255,.55); letter-spacing:.5px;
+  }
+  .dev-label {
+    color:#00e5c7; font-weight:700; letter-spacing:1px;
+    text-shadow:0 0 6px rgba(0,229,199,.5);
+  }
+  .footer a {
+    color:#ffd400; font-weight:800; text-decoration:none;
+    font-size:1.15em; letter-spacing:1px;
+    text-shadow:0 0 8px rgba(255,212,0,.6);
+  }
+
+  #profileIconWrap {
+    width:24px; height:24px; display:flex; align-items:center; justify-content:center;
+    font-size:20px; line-height:1; overflow:hidden; border-radius:50%;
+  }
+  #profileIconWrap img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+
+  .day-cell.birthday {
+    background:rgba(255,212,0,.22);
+    box-shadow:0 0 0 1.5px #ffd400 inset, 0 0 12px rgba(255,212,0,.5);
+  }
+  .cake-icon { font-size:.6em; margin-top:1px; }
+  .holiday-list-item.birthday-item { color:#ffd400; }
+  .holiday-list-item.commem-item { color:#ff9de2; }
+  .holiday-dot.commem-dot { background:#ff9de2; }
+
+  .modal-overlay {
+    position:fixed; inset:0; z-index:50;
+    background:rgba(0,0,0,.6);
+    display:none; align-items:center; justify-content:center;
+    padding:24px;
+  }
+  .modal-overlay.show { display:flex; }
+  .profile-card {
+    width:100%; max-width:360px;
+    background:#1b1410; border:1px solid rgba(255,255,255,.15);
+    border-radius:16px; padding:20px;
+    box-shadow:0 12px 40px rgba(0,0,0,.6);
+  }
+  .profile-card-title {
+    color:#fff; font-weight:800; font-size:1.1em;
+    text-align:center; margin-bottom:14px; letter-spacing:1px;
+  }
+  .profile-photo-row {
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    margin-bottom:14px;
+  }
+  .profile-photo-preview {
+    width:70px; height:70px; border-radius:50%;
+    background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.25);
+    display:flex; align-items:center; justify-content:center;
+    font-size:32px; overflow:hidden;
+  }
+  .profile-photo-preview img { width:100%; height:100%; object-fit:cover; }
+  .profile-photo-btn {
+    color:#00e5c7; font-size:.78em; font-weight:700;
+    cursor:pointer; letter-spacing:.5px;
+  }
+  .profile-label {
+    display:block; color:rgba(255,255,255,.6); font-size:.72em;
+    letter-spacing:1px; text-transform:uppercase; margin:10px 0 4px;
+  }
+  .profile-input {
+    width:100%; padding:10px 12px; border-radius:10px;
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.2);
+    color:#fff; font-size:.95em;
+  }
+  .profile-input::placeholder { color:rgba(255,255,255,.35); }
+  .sex-options { display:flex; gap:10px; }
+  .sex-opt {
+    width:48px; height:48px; border-radius:12px;
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.2);
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; cursor:pointer;
+  }
+  .sex-opt.selected {
+    border-color:#00e5c7; background:rgba(0,229,199,.18);
+    box-shadow:0 0 10px rgba(0,229,199,.4);
+  }
+  .profile-actions {
+    display:flex; gap:10px; margin-top:18px;
+  }
+  .profile-btn {
+    flex:1; padding:11px; border-radius:10px; border:none;
+    font-weight:700; font-size:.9em; cursor:pointer;
+  }
+  .profile-btn.cancel { background:rgba(255,255,255,.1); color:#fff; }
+  .profile-btn.save { background:#00e5c7; color:#062b26; }
+
+  /* animações de fundo (feriados e aniversário) */
+  #fxCanvas { position:fixed; inset:0; z-index:1; width:100%; height:100%; pointer-events:none; }
+  .calendar-card { transition: background .8s ease, backdrop-filter .8s ease, -webkit-backdrop-filter .8s ease; }
+  .day-cell:not(.empty) { cursor:pointer; }
+  .day-cell.fx-sel { outline:2px solid #fff; outline-offset:-2px; background-color:rgba(255,255,255,.14); }
+  body.fx-on .calendar-card {
+    background:rgba(20,15,10,.32);
+    -webkit-backdrop-filter: blur(1.5px); backdrop-filter: blur(1.5px);
+  }
+</style>
+</head>
+<body>
+
+<div id="bg" class="bg-day"></div>
+<div class="stars" id="stars"></div>
+<div class="sun" id="sun"></div>
+<div class="moon" id="moon"></div>
+<canvas id="fxCanvas"></canvas>
+
+<div id="app">
+  <div class="topbar">
+    <div class="icon-btn" id="profileBtn" title="Perfil"><span id="profileIconWrap">👤</span></div>
+    <div class="icon-btn" id="searchBtn" title="Pesquisar mês/ano ou feriado"><span class="search-icon"></span></div>
+  </div>
+
+  <button class="today-btn" id="todayBtn">Voltar para hoje</button>
+  <div class="month-name" id="monthName">MÊS</div>
+  <div class="year-label" id="yearLabel">2026</div>
+
+  <div class="calendar-card">
+    <div class="ledger-lines" id="ledgerLines"></div>
+    <div class="weekdays">
+      <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
+    </div>
+    <div class="days-grid" id="daysGrid"></div>
+  </div>
+
+  <div class="holiday-list" id="holidayList">
+    <div class="holiday-list-title">Feriados e datas do mês</div>
+    <div id="holidayListItems"></div>
+  </div>
+
+  <div class="footer">
+    <span class="dev-label">Desenvolvido por</span> <a href="https://10uilton.blogspot.com" target="_blank">10uilton</a>
+  </div>
+</div>
+
+<div class="modal-overlay" id="profileOverlay">
+  <div class="profile-card">
+    <div class="profile-card-title">Meu perfil</div>
+
+    <div class="profile-photo-row">
+      <div class="profile-photo-preview" id="photoPreview">👤</div>
+      <label class="profile-photo-btn">
+        Escolher foto
+        <input type="file" accept="image/*" id="photoInput" style="display:none;">
+      </label>
+    </div>
+
+    <label class="profile-label">Nome</label>
+    <input type="text" id="nameInput" class="profile-input" placeholder="Seu nome">
+
+    <label class="profile-label">Sexo</label>
+    <div class="sex-options" id="sexOptions">
+      <div class="sex-opt" data-value="masculino">🚹</div>
+      <div class="sex-opt" data-value="feminino">🚺</div>
+    </div>
+
+    <label class="profile-label">Data de nascimento</label>
+    <input type="date" id="birthInput" class="profile-input">
+
+    <div class="profile-actions">
+      <button class="profile-btn cancel" id="profileCancel">Cancelar</button>
+      <button class="profile-btn save" id="profileSave">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const monthNames = ["JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+
+let viewDate = new Date();
+let currentYear = viewDate.getFullYear();
+let currentMonth = viewDate.getMonth();
+
+// ---------- Perfil do usuário ----------
+let userProfile = null;
+try {
+  const saved = localStorage.getItem("10uilton_profile");
+  if(saved) userProfile = JSON.parse(saved);
+} catch(e){ userProfile = null; }
+
+function iconForProfile(p){
+  if(!p) return "👤";
+  if(p.photo) return null; // sinaliza que é foto, tratado à parte
+  if(p.sexo==="masculino") return "🚹";
+  if(p.sexo==="feminino") return "🚺";
+  return "👤";
+}
+
+function renderProfileIcon(){
+  const wrap = document.getElementById("profileIconWrap");
+  if(userProfile && userProfile.photo){
+    wrap.innerHTML = `<img src="${userProfile.photo}" alt="foto">`;
+  } else {
+    wrap.textContent = iconForProfile(userProfile);
+  }
+}
+
+function openProfileModal(){
+  const overlay = document.getElementById("profileOverlay");
+  document.getElementById("nameInput").value = userProfile?.nome || "";
+  document.getElementById("birthInput").value = userProfile?.nascimento || "";
+
+  document.querySelectorAll(".sex-opt").forEach(opt=>{
+    opt.classList.toggle("selected", userProfile && opt.dataset.value===userProfile.sexo);
+  });
+
+  const preview = document.getElementById("photoPreview");
+  if(userProfile && userProfile.photo){
+    preview.innerHTML = `<img src="${userProfile.photo}" alt="foto">`;
+  } else {
+    preview.innerHTML = "👤";
+  }
+  window._tempPhoto = userProfile?.photo || null;
+
+  overlay.classList.add("show");
+}
+
+document.getElementById("profileBtn").addEventListener("click", openProfileModal);
+document.getElementById("profileCancel").addEventListener("click", ()=>{
+  document.getElementById("profileOverlay").classList.remove("show");
+});
+
+let selectedSex = null;
+document.querySelectorAll(".sex-opt").forEach(opt=>{
+  opt.addEventListener("click", ()=>{
+    document.querySelectorAll(".sex-opt").forEach(o=>o.classList.remove("selected"));
+    opt.classList.add("selected");
+    selectedSex = opt.dataset.value;
+  });
+});
+
+document.getElementById("photoInput").addEventListener("change", (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    window._tempPhoto = reader.result;
+    document.getElementById("photoPreview").innerHTML = `<img src="${reader.result}" alt="foto">`;
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById("profileSave").addEventListener("click", ()=>{
+  const nome = document.getElementById("nameInput").value.trim();
+  const nascimento = document.getElementById("birthInput").value;
+  const sexoAtivo = selectedSex || userProfile?.sexo || null;
+
+  userProfile = {
+    nome: nome,
+    nascimento: nascimento,
+    sexo: sexoAtivo,
+    photo: window._tempPhoto || null
+  };
+
+  try { localStorage.setItem("10uilton_profile", JSON.stringify(userProfile)); } catch(e){}
+
+  renderProfileIcon();
+  document.getElementById("profileOverlay").classList.remove("show");
+  renderCalendar();
+});
+
+// ---------- Feriados nacionais (fixos + móveis via cálculo da Páscoa) ----------
+function easterDate(year){
+  const a=year%19, b=Math.floor(year/100), c=year%100,
+        d=Math.floor(b/4), e=b%4, f=Math.floor((b+8)/25),
+        g=Math.floor((b-f+1)/3), h=(19*a+b-d-g+15)%30,
+        i=Math.floor(c/4), k=c%4, l=(32+2*e+2*i-h-k)%7,
+        m=Math.floor((a+11*h+22*l)/451),
+        month=Math.floor((h+l-7*m+114)/31), day=((h+l-7*m+114)%31)+1;
+  return new Date(year, month-1, day);
+}
+function addDays(date, days){ const d=new Date(date); d.setDate(d.getDate()+days); return d; }
+function fmtKey(d){ return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); }
+
+function getHolidays(year){
+  const list = {};
+  const fixed = [
+    [0,1,"Confraternização Universal"],
+    [3,21,"Tiradentes"],
+    [4,1,"Dia do Trabalho"],
+    [8,7,"Independência do Brasil"],
+    [9,12,"Nossa Sr.ª Aparecida"],
+    [10,2,"Finados"],
+    [10,15,"Proclamação da República"],
+    [11,25,"Natal"]
+  ];
+  fixed.forEach(([m,d,name])=>{ list[year+"-"+(m+1)+"-"+d] = name; });
+  if(year >= 2024) list[year+"-11-20"] = "Dia da Consciência Negra"; // feriado nacional desde a Lei 14.759/2023
+
+  const easter = easterDate(year);
+  const carnavalTue = addDays(easter,-47);
+  const carnavalMon = addDays(easter,-48);
+  const goodFriday = addDays(easter,-2);
+  const corpusChristi = addDays(easter,60);
+
+  list[fmtKey(carnavalMon)] = "Carnaval";
+  list[fmtKey(carnavalTue)] = "Carnaval";
+  list[fmtKey(goodFriday)] = "Sexta-feira Santa";
+  list[fmtKey(easter)] = "Páscoa";
+  list[fmtKey(corpusChristi)] = "Corpus Christi";
+
+  return list;
+}
+
+// ---------- Datas comemorativas (não são feriados) ----------
+// [mês, dia, nome, emojis, cores] — mês/dia null = data móvel (calculada em getCommemorative)
+const COMEM_TEMAS = [
+  [2,2,"Dia de Iemanjá",["🌊","🐚","🤍","🌹"],["#ffffff","#7ec8e3","#2ec5ff"]],
+  [2,13,"Dia Mundial do Rádio",["📻","🎵","🎶","📡"]],
+  [3,15,"Dia do Consumidor",["🛒","🛍️","💳"]],
+  [3,22,"Dia Mundial da Água",["💧","🌊","🚰"],["#2ec5ff","#7ec8e3","#ffffff"]],
+  [4,1,"Dia da Mentira",["🤥","🃏","🤡"]],
+  [4,7,"Dia Mundial da Saúde",["❤️","🩺","🏥"],["#ffffff","#e63946","#2ec5ff"]],
+  [4,19,"Dia dos Povos Indígenas",["🌿","🏹","🌳","🦜"],["#c8102e","#ffd400","#1fa64a","#8b5a2b"]],
+  [4,22,"Dia da Terra",["🌎","🌳","🌱","♻️"],["#1fa64a","#2ec5ff","#ffffff"]],
+  [4,23,"Dia Mundial do Livro",["📚","📖","🔖"]],
+  [5,12,"Dia da Enfermagem",["🩺","💉","❤️","🏥"],["#ffffff","#e63946","#2ec5ff"]],
+  [5,13,"Abolição da Escravidão",["✊🏿","✊🏾","🕊️","✨"],["#1fa64a","#ffd400","#c8102e","#ffffff"]],
+  [6,5,"Dia do Meio Ambiente",["🌳","🌱","🌍","🦋"],["#1fa64a","#7bd88f","#ffffff"]],
+  [7,13,"Dia do Rock",["🎸","🤘","🎵","🔥"],["#e63946","#ffd400","#ffffff"]],
+  [7,26,"Dia dos Avós",["👵🏽","👴🏽","💛","🧶"],["#ffd400","#ffffff","#ff9de2"]],
+  [8,11,"Dia do Estudante",["🎒","📚","✏️","🎓"]],
+  [8,22,"Dia do Folclore",["🎭","🥁","🌽","🎶"]],
+  [9,5,"Dia da Amazônia",["🌳","🦜","🌿","🦋"],["#1fa64a","#7bd88f","#ffd400"]],
+  [9,21,"Dia da Árvore",["🌳","🌲","🍃","🌱"],["#1fa64a","#7bd88f","#ffffff"]],
+  [9,25,"Dia do Rádio",["📻","🎵","🎶","📡"]],
+  [9,27,"Dia de Cosme e Damião",["🍬","🍭","🍫","🧁"]],
+  [10,1,"Dia do Idoso",["💛","🧓🏽","🌻","☕"],["#ffd400","#ffffff","#ff9de2"]],
+  [10,4,"Dia dos Animais",["🐶","🐱","🐾","🦜"]],
+  [10,28,"Dia do Servidor Público",["🏛️","📋","🤝"],["#1e5bd8","#ffffff","#ffd400"]],
+  [11,1,"Dia de Todos os Santos",["🕊️","✨","🕯️","🌹"],["#ffffff","#ffd400"]],
+  [11,22,"Dia do Músico",["🎸","🎹","🎷","🎺"]],
+  [12,2,"Dia do Samba",["🥁","🎶","🎷","🎺"],["#1fa64a","#ffd400","#ffffff","#e63946"]],
+  [12,10,"Dia dos Direitos Humanos",["🕊️","🤝","⚖️","🌍"],["#2ec5ff","#ffffff"]],
+  [3,27,"Dia do Circo",["🎪","🤡","🎈","🤹"]],
+  [4,29,"Dia da Dança",["💃","🕺","🩰","🎶"]],
+  [5,17,"Dia Mundial das Telecomunicações",["🌐","📶","💻"],["#2ec5ff","#ffffff"]],
+  [5,24,"Dia do Café",["☕","🥐","🍪"],["#8b5a2b","#ffffff","#ffd400"]],
+  [5,25,"Dia do Orgulho Nerd e Geek",["🤓","🎮","💻","🚀"]],
+  [5,28,"Dia do Hambúrguer",["🍔","🍟","🥤"]],
+  [6,28,"Dia do Orgulho LGBTQIA+",["🏳️‍🌈","🌈","💖","✨"],["#e63946","#ff8a1a","#ffd400","#1fa64a","#2ec5ff","#7a5cff"]],
+  [7,2,"Dia do Bombeiro",["🚒","🧯","👨🏽‍🚒","🔥"],["#e63946","#ffd400","#ffffff"]],
+  [7,7,"Dia do Chocolate",["🍫","🍬","🍪"],["#8b5a2b","#ffffff","#ff9de2"]],
+  [7,10,"Dia da Pizza",["🍕","🧀","🍅"],["#e63946","#ffd400","#ffffff"]],
+  [7,25,"Dia do Motorista",["🚗","🚌","🚚","🛣️"]],
+  [8,4,"Dia do Padre",["⛪","🕊️","🙏🏽","✨"],["#ffffff","#ffd400"]],
+  [8,25,"Dia do Soldado",["🎖️","🪖","⭐"],["#1fa64a","#ffd400","#ffffff"]],
+  [8,31,"Dia do Nutricionista",["🥗","🍎","🥕","🥦"],["#1fa64a","#e63946","#ffd400"]],
+  [9,15,"Dia do Cliente",["🛒","🤝","💛"]],
+  [10,8,"Dia do Nordestino",["🌵","☀️","🥁","🌽"],["#ffd400","#ff8a1a","#1fa64a"]],
+  [10,16,"Dia Mundial da Alimentação",["🍎","🥖","🌽","🍚"]],
+  [10,18,"Dia do Médico",["🩺","💉","🏥","❤️"],["#ffffff","#e63946","#2ec5ff"]],
+  [10,23,"Dia do Aviador",["✈️","☁️","🛩️"],["#2ec5ff","#ffffff","#1e5bd8"]],
+  [10,25,"Dia do Dentista",["🦷","😁","✨"],["#ffffff","#2ec5ff"]],
+  [6,19,"Dia do Cinema Brasileiro",["🎬","🍿","🎞️","⭐"]],
+  [12,5,"Dia do Voluntário",["🤝","❤️","🌍"]],
+  [12,13,"Dia do Marinheiro",["⚓","🌊","⛵"],["#1e5bd8","#ffffff","#2ec5ff"]],
+  [null,null,"Black Friday",["🛍️","🏷️","💸","🛒"],["#ffd400","#ffffff","#ff3b3b"]],
+  [null,null,"Dia do Programador",["💻","⌨️","🐛","🤖"],["#00e5c7","#ffffff","#7a5cff"]],
+  [null,null,"Quarta-feira de Cinzas",["🕯️","🙏🏽","✨"],["#cccccc","#ffffff"]],
+  [null,null,"Domingo de Ramos",["🌿","🕊️","🌴"],["#1fa64a","#7bd88f","#ffffff"]],
+  [null,null,"Quinta-feira Santa",["🍞","🍷","🕯️"],["#ffffff","#ffd400"]],
+  [null,null,"Sábado de Aleluia",["🕯️","✨","🔔"],["#ffffff","#ffd400"]],
+  [null,null,"Pentecostes",["🔥","🕊️","✨"],["#e63946","#ff8a1a","#ffd400"]]
+];
+
+function nthWeekday(year, month, weekday, n){ // n-ésimo dia da semana do mês (ex.: 2º domingo)
+  const first = new Date(year, month, 1).getDay();
+  return 1 + ((weekday - first + 7) % 7) + (n-1)*7;
+}
+function getCommemorative(year){
+  const l = {};
+  [[2,8,"Dia Internacional da Mulher"],[5,12,"Dia dos Namorados"],[5,13,"Santo Antônio (Festa Junina)"],[5,24,"Festa Junina (São João)"],[5,29,"São Pedro (Festa Junina)"],
+   [6,20,"Dia do Amigo"],[9,12,"Dia das Crianças"],[9,15,"Dia dos Professores"],[9,31,"Halloween"],
+   [10,19,"Dia da Bandeira"],[11,24,"Véspera de Natal"],[11,31,"Réveillon"]
+  ].forEach(([m,d,n])=>{ l[year+"-"+(m+1)+"-"+d] = n; });
+  l[year+"-5-"+nthWeekday(year,4,0,2)] = "Dia das Mães";   // 2º domingo de maio
+  l[year+"-8-"+nthWeekday(year,7,0,2)] = "Dia dos Pais";   // 2º domingo de agosto
+  const bf = nthWeekday(year,10,5,4); l[year+"-11-"+(bf+7 <= 30 ? bf+7 : bf)] = "Black Friday"; // última sexta de novembro
+  l[fmtKey(new Date(year,0,256))] = "Dia do Programador"; // 256º dia do ano
+  const pas = easterDate(year);
+  [[-46,"Quarta-feira de Cinzas"],[-7,"Domingo de Ramos"],[-3,"Quinta-feira Santa"],[-1,"Sábado de Aleluia"],[49,"Pentecostes"]]
+    .forEach(([n,name])=>{ l[fmtKey(addDays(pas,n))] = name; });
+  COMEM_TEMAS.forEach(([m,d,name])=>{ if(m) l[year+"-"+m+"-"+d] = name; });
+  return l;
+}
+
+// ---------- Fase da lua (aproximação) ----------
+function moonPhaseIcon(date){
+  const lp = 2551443; // segundos de um ciclo lunar
+  const newMoonRef = new Date(2000,0,6,18,14,0).getTime()/1000;
+  const now = date.getTime()/1000;
+  let phase = ((now - newMoonRef) % lp) / lp;
+  if(phase<0) phase+=1;
+  const idx = Math.round(phase*8) % 8;
+  const icons = ["🌑","🌒","🌓","🌔","🌕","🌖","🌗","🌘"];
+  return icons[idx];
+}
+
+// ---------- Render calendário ----------
+function renderCalendar(){
+  document.getElementById("monthName").textContent = monthNames[currentMonth];
+  document.getElementById("yearLabel").textContent = currentYear;
+
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear()===currentYear && today.getMonth()===currentMonth;
+  document.getElementById("todayBtn").classList.toggle("show", !isCurrentMonth || (fxSel && fmtKey(fxSel) !== fmtKey(today)));
+
+  const grid = document.getElementById("daysGrid");
+  grid.innerHTML = "";
+
+  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate();
+  const holidays = getHolidays(currentYear);
+  const commem = getCommemorative(currentYear);
+
+  for(let i=0;i<firstDay;i++){
+    const empty = document.createElement("div");
+    empty.className="day-cell empty";
+    grid.appendChild(empty);
+  }
+
+  for(let d=1; d<=daysInMonth; d++){
+    const dateObj = new Date(currentYear, currentMonth, d);
+    const weekday = dateObj.getDay();
+    const key = fmtKey(dateObj);
+    const cell = document.createElement("div");
+    cell.className = "day-cell";
+    if(weekday===6) cell.classList.add("saturday");
+    if(weekday===0) cell.classList.add("sunday");
+    if(holidays[key]) cell.classList.add("holiday");
+    const isBirthday = userProfile && userProfile.nascimento && (()=>{
+      const b = new Date(userProfile.nascimento+"T00:00:00");
+      return b.getDate()===d && b.getMonth()===currentMonth;
+    })();
+    if(isBirthday) cell.classList.add("birthday");
+    if(today.getDate()===d && today.getMonth()===currentMonth && today.getFullYear()===currentYear){
+      cell.classList.add("today");
+    }
+
+    const num = document.createElement("div");
+    num.textContent = d;
+    cell.appendChild(num);
+
+    if(isBirthday){
+      const cake = document.createElement("div");
+      cake.className="cake-icon";
+      cake.textContent="🎂";
+      cell.appendChild(cake);
+      cell.title = "Seu aniversário";
+    }
+
+    if(holidays[key]){
+      const dot = document.createElement("div");
+      dot.className="holiday-dot";
+      cell.appendChild(dot);
+      cell.title = holidays[key];
+    }
+
+    if(commem[key]){
+      if(holidays[key]){ cell.title = holidays[key] + " • " + commem[key]; }
+      else {
+        cell.classList.add("commem");
+        const cd = document.createElement("div"); cd.className = "holiday-dot commem-dot"; cell.appendChild(cd);
+        cell.title = commem[key];
+      }
+    }
+    cell.dataset.day = d;
+    if(fmtKey(fxSel || today) === key) cell.classList.add("fx-sel");
+
+    // mostra fase da lua só em algumas datas-chave por mês (a cada ~4 dias) pra não poluir
+    if(d % 4 === 0){
+      const moonSpan = document.createElement("div");
+      moonSpan.className="moon-icon";
+      moonSpan.textContent = moonPhaseIcon(dateObj);
+      cell.appendChild(moonSpan);
+    }
+
+    grid.appendChild(cell);
+  }
+
+  renderMonthHolidays(holidays, daysInMonth);
+  setFx(fxKeyForDate(fxSel || new Date()));
+}
+
+function renderMonthHolidays(holidays, daysInMonth){
+  const monthHolidays = [];
+  const commemMonth = getCommemorative(currentYear);
+  for(let d=1; d<=daysInMonth; d++){
+    const key = fmtKey(new Date(currentYear, currentMonth, d));
+    if(holidays[key]) monthHolidays.push({day:d, name:holidays[key], birthday:false});
+    if(commemMonth[key]) monthHolidays.push({day:d, name:commemMonth[key], birthday:false, commem:true});
+  }
+  if(userProfile && userProfile.nascimento){
+    const b = new Date(userProfile.nascimento+"T00:00:00");
+    if(b.getMonth()===currentMonth){
+      monthHolidays.push({day:b.getDate(), name:"Seu aniversário", birthday:true});
+    }
+  }
+  monthHolidays.sort((a,b)=>a.day-b.day);
+
+  const listEl = document.getElementById("holidayList");
+  const itemsEl = document.getElementById("holidayListItems");
+  if(monthHolidays.length===0){
+    listEl.classList.remove("show");
+    itemsEl.innerHTML="";
+    return;
+  }
+  itemsEl.innerHTML = monthHolidays.map(h=>
+    `<div class="holiday-list-item${h.birthday?" birthday-item":""}${h.commem?" commem-item":""}"><span>${String(h.day).padStart(2,"0")}</span> — ${h.birthday?"🎂 ":""}${h.name}</div>`
+  ).join("");
+  listEl.classList.add("show");
+}
+
+// ---------- Linhas verticais estilo livro-caixa ----------
+function renderLedgerLines(){
+  const container = document.getElementById("ledgerLines");
+  container.innerHTML="";
+  for(let i=0;i<8;i++){
+    const s=document.createElement("span");
+    container.appendChild(s);
+  }
+}
+
+// ---------- Fundo dia/noite em tempo real ----------
+function renderStars(){
+  const starsEl = document.getElementById("stars");
+  if(starsEl.childElementCount>0) return;
+  for(let i=0;i<60;i++){
+    const s=document.createElement("div");
+    s.className="star";
+    s.style.left = Math.random()*100+"%";
+    s.style.top = Math.random()*60+"%";
+    s.style.animationDelay = (Math.random()*3)+"s";
+    starsEl.appendChild(s);
+  }
+}
+renderStars();
+
+function updateBackground(){
+  const now = new Date();
+  const h = now.getHours();
+  const bg = document.getElementById("bg");
+  const stars = document.getElementById("stars");
+  const sun = document.getElementById("sun");
+  const moon = document.getElementById("moon");
+  const monthName = document.getElementById("monthName");
+  const isDay = h>=6 && h<18;
+
+  bg.classList.toggle("bg-day", isDay);
+  bg.classList.toggle("bg-night", !isDay);
+  stars.classList.toggle("show", !isDay);
+  sun.classList.toggle("show", isDay);
+  moon.classList.toggle("show", !isDay);
+  monthName.classList.toggle("glow-day", isDay);
+  monthName.classList.toggle("glow-night", !isDay);
+}
+updateBackground();
+setInterval(updateBackground, 60000);
+
+// ---------- Animações de fundo: feriados e aniversário ----------
+const fxCanvas = document.getElementById("fxCanvas");
+const fxCtx = fxCanvas.getContext("2d");
+let fxW = 0, fxH = 0, fxParts = [], fxRaf = null, fxLast = 0, fxAcc = {};
+let fxCur = null, fxKey = null, fxRayA = 0, fxRayCol = null, fxWind = 0;
+const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+const rnd = (a,b)=> a + Math.random()*(b-a);
+const pick = arr => arr[Math.floor(Math.random()*arr.length)];
+
+function fxResize(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  fxW = window.innerWidth; fxH = window.innerHeight;
+  fxCanvas.width = fxW*dpr; fxCanvas.height = fxH*dpr;
+  fxCtx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener("resize", fxResize);
+fxResize();
+
+const BR    = ["#009c3b","#ffdf00","#002776","#ffffff"];
+const FESTA = ["#ff2d95","#ffd400","#00e5c7","#7a5cff","#ff7a1a","#3dff6b"];
+
+const FX_DEFS = {
+  ano_novo: { emit:[
+    {k:"firework", rate:.8, colors:["#ffd700","#ffffff","#ffb84d","#ff6b6b","#7ec8ff"]},
+    {k:"confetti", rate:6,  colors:["#ffd700","#ffffff","#c0c0c0"]}
+  ]},
+  carnaval: { emit:[
+    {k:"confetti", rate:30, colors:FESTA},
+    {k:"ribbon", rate:2.2, colors:FESTA},
+    {k:"fall", rate:1.2, emojis:["🎭","🎉","🥁","🎊"], min:50, max:110}
+  ]},
+  sexta: { rays:"rgba(255,244,205,", emit:[
+    {k:"rise", rate:.5, emojis:["🕊️"], norot:true, min:22, max:40, s0:28, s1:40},
+    {k:"firefly", rate:1.5}
+  ]},
+  pascoa: { emit:[
+    {k:"hop", rate:.5, emojis:["🐰","🐇"], h:30, v0:35, v1:60, s0:34, s1:46},
+    {k:"fall", rate:1.4, emojis:["🍫"], min:35, max:70}
+  ]},
+  tiradentes: { rays:"rgba(255,215,130,", emit:[
+    {k:"flag", st:"inc", rate:1.4},
+    {k:"firework", rate:.2, colors:["#ffd700","#ffffff"]},
+    {k:"fall", rate:.5, emojis:["✨"], flip:true, min:30, max:60}
+  ]},
+  trabalho: { emit:[
+    {k:"hop", rate:1.6, emojis:["👷🏽‍♂️","👷🏿‍♀️","👩🏽‍🌾","🧑🏾‍🍳","👨🏽‍🔧","👩🏻‍🔧","👨🏿‍🏫","👩🏽‍⚕️","👨🏾‍🚒","👩🏻‍💻","🧑🏽‍🏭","👨🏼‍🌾","👩🏿‍🍳","🧑🏻‍✈️"], h:4, sp0:7, sp1:10, v0:25, v1:50, s0:30, s1:42},
+    {k:"fall", rate:.6, emojis:["⚙️","🔧","🛠️"], min:40, max:80}
+  ]},
+  independencia: { emit:[
+    {k:"firework", rate:.7, colors:BR},
+    {k:"flag", rate:1.6},
+    {k:"confetti", rate:10, colors:BR}
+  ]},
+  aparecida: { rays:"rgba(190,220,255,", emit:[
+    {k:"petal", rate:3, colors:["#c8102e","#ffffff","#ff8fa3","#1e5bd8"]},
+    {k:"rise", rate:.5, emojis:["🙏🏽"], norot:true, min:18, max:34, s0:28, s1:40},
+    {k:"fall", rate:.8, emojis:["✨"], flip:true, min:30, max:60}
+  ]},
+  finados: { emit:[
+    {k:"firefly", rate:3.5},
+    {k:"lantern", rate:.5}
+  ]},
+  republica: { emit:[
+    {k:"firework", rate:.5, colors:BR},
+    {k:"flag", rate:1.2},
+    {k:"confetti", rate:10, colors:BR}
+  ]},
+  maes: { emit:[
+    {k:"petal", rate:3, land:true, colors:["#ff8fb8","#e63946","#ffffff","#ffd1e3"]},
+    {k:"rise", rate:1, emojis:["❤️","💐","🌷"], norot:true, min:22, max:45, s0:24, s1:38}
+  ]},
+  pais: { emit:[
+    {k:"confetti", rate:12, colors:["#1e5bd8","#0b2a6b","#ffd400","#ffffff"]},
+    {k:"rise", rate:.9, emojis:["💙","🏆"], norot:true, min:22, max:45, s0:26, s1:38},
+    {k:"fall", rate:.8, emojis:["👔","⚽","🛠️"], min:35, max:70}
+  ]},
+  namorados: { emit:[
+    {k:"rise", rate:2.4, emojis:["❤️","💕","💘","💖"], norot:true, min:25, max:60, s0:20, s1:40},
+    {k:"petal", rate:2, colors:["#e63946","#ff8fb8","#ffffff"]},
+    {k:"firefly", rate:1.5}
+  ]},
+  mulher: { emit:[
+    {k:"petal", rate:3, colors:["#b565d9","#ff8fb8","#ffffff","#ffd400"]},
+    {k:"rise", rate:.8, emojis:["💜","🌷"], norot:true, min:22, max:45, s0:24, s1:38},
+    {k:"confetti", rate:8, colors:["#b565d9","#ffffff","#ffd400"]}
+  ]},
+  junina: { emit:[
+    {k:"lantern", rate:.8},
+    {k:"firework", rate:.5, colors:["#ff8a1a","#ffd400","#e63946","#ffffff"]},
+    {k:"fall", rate:.7, emojis:["🌽","🔥"], min:35, max:70}
+  ]},
+  amigo: { emit:[
+    {k:"confetti", rate:12, colors:["#ffd400","#ff8a1a","#ffffff","#2ec5ff"]},
+    {k:"rise", rate:1, emojis:["🤝","💛","🎉"], norot:true, min:22, max:45, s0:26, s1:38}
+  ]},
+  criancas: { emit:[
+    {k:"balloon", rate:1.1, colors:["#ff3b6b","#ffd400","#2ec5ff","#7a5cff","#3dff6b","#ff8a1a"]},
+    {k:"confetti", rate:14, colors:["#ff3b6b","#ffd400","#2ec5ff","#7a5cff","#3dff6b"]},
+    {k:"fall", rate:1, emojis:["🧸","🍭","🎁"], min:35, max:70}
+  ]},
+  professores: { emit:[
+    {k:"fall", rate:1.6, emojis:["📚","✏️","🍎","🔔"], flip:true, min:35, max:75},
+    {k:"fall", rate:.6, emojis:["✨"], flip:true, min:30, max:60}
+  ]},
+  halloween: { emit:[
+    {k:"firefly", rate:2.5},
+    {k:"fall", rate:1, emojis:["🎃","🍬"], min:35, max:70},
+    {k:"rise", rate:.5, emojis:["👻","🦇"], norot:true, min:22, max:45, s0:28, s1:40}
+  ]},
+  consciencia: { rays:"rgba(255,200,90,", emit:[
+    {k:"confetti", rate:12, colors:["#c8102e","#ffd400","#1fa64a","#ffffff"]},
+    {k:"rise", rate:.8, emojis:["✊🏿","✊🏾","✊🏽"], norot:true, min:20, max:40, s0:28, s1:40},
+    {k:"fall", rate:.6, emojis:["🥁"], min:35, max:70}
+  ]},
+  natal: { emit:[
+    {k:"snow", rate:35},
+    {k:"fall", rate:.6, emojis:["🎄","⭐","🎁"], min:30, max:60}
+  ]},
+  corpus: { rays:"rgba(255,225,140,", emit:[
+    {k:"petal", rate:5, land:true, colors:["#ffffff","#ffe27a","#ff9f43","#e63946","#7bd88f"]},
+    {k:"firefly", rate:1.2}
+  ]},
+  aniversario: { emit:[
+    {k:"balloon", rate:1.3, colors:["#ff3b6b","#ffd400","#2ec5ff","#7a5cff","#3dff6b","#ff8a1a"]},
+    {k:"confetti", rate:22, colors:FESTA},
+    {k:"firework", rate:.35, colors:FESTA}
+  ]}
+};
+
+const FX_TEMAS = {};
+COMEM_TEMAS.forEach(([m,d,name,em,col])=>{
+  FX_TEMAS["t:"+normalizeText(name)] = { emit:[
+    {k:"fall", rate:1.6, emojis:em, norot:true, min:30, max:70, s0:22, s1:36},
+    {k:"rise", rate:.6, emojis:em, norot:true, min:20, max:40, s0:24, s1:38},
+    {k:"confetti", rate:6, colors:col || FESTA}
+  ]};
+});
+
+function fxKeyForHoliday(name){
+  const n = normalizeText(name);
+  if(FX_TEMAS["t:"+n]) return "t:"+n;
+  if(n.includes("bandeira")) return "independencia";
+  if(n.includes("confrat"))     return "ano_novo";
+  if(n.includes("carnaval"))    return "carnaval";
+  if(n.includes("sexta"))       return "sexta";
+  if(n.includes("pascoa"))      return "pascoa";
+  if(n.includes("tiradentes"))  return "tiradentes";
+  if(n.includes("trabalho"))    return "trabalho";
+  if(n.includes("independ"))    return "independencia";
+  if(n.includes("aparecida"))   return "aparecida";
+  if(n.includes("finados"))     return "finados";
+  if(n.includes("republica"))   return "republica";
+  if(n.includes("mulher"))      return "mulher";
+  if(n.includes("namorados"))   return "namorados";
+  if(n.includes("junina"))      return "junina";
+  if(n.includes("amigo"))       return "amigo";
+  if(n.includes("criancas"))    return "criancas";
+  if(n.includes("professores")) return "professores";
+  if(n.includes("halloween"))   return "halloween";
+  if(n.includes("reveillon"))   return "ano_novo";
+  if(n.includes("maes"))        return "maes";
+  if(n.includes("pais"))        return "pais";
+  if(n.includes("consci"))      return "consciencia";
+  if(n.includes("natal"))       return "natal";
+  if(n.includes("corpus"))      return "corpus";
+  return null;
+}
+
+function fxIsBirthday(date){
+  if(!(userProfile && userProfile.nascimento)) return false;
+  const p = userProfile.nascimento.split("-").map(Number); // AAAA-MM-DD
+  return p[1]-1 === date.getMonth() && p[2] === date.getDate();
+}
+
+// efeito de uma data (aniversário tem prioridade sobre feriado; dia comum = sem animação)
+let fxSel = null; // dia marcado pelo usuário; null = hoje
+function fxKeyForDate(date){
+  if(fxIsBirthday(date)) return "aniversario";
+  // só o aniversário tem animação; feriados e datas comemorativas ficam sem
+  return null;
+}
+
+function fxSpawn(em, warm){
+  const W = fxW, H = fxH, z = rnd(.55,1.2); // z = profundidade (longe = menor, mais lento, mais apagado)
+  switch(em.k){
+    case "confetti":
+      fxParts.push({k:"c", z, x:rnd(0,W), y:warm?rnd(0,H):-12, vx:rnd(-15,15), vy:rnd(70,150)*z,
+        w:rnd(6,11)*z, h:rnd(3,6)*z, rot:rnd(0,6.28), vr:rnd(-6,6), sw:rnd(0,6.28), col:pick(em.colors)});
+      break;
+    case "ribbon": // serpentina
+      fxParts.push({k:"w", z, bx:rnd(0,W), y:warm?rnd(0,H):-30, vy:rnd(60,110)*z, ph:rnd(0,6.28),
+        col:pick(em.colors), pts:[]});
+      break;
+    case "fall":
+    case "rise": {
+      const up = em.k === "rise";
+      fxParts.push({k:"e", z, x:rnd(0,W), y:warm?rnd(0,H):(up?H+40:-40),
+        vy:(up?-1:1)*rnd(em.min||40, em.max||100)*z, sw:rnd(0,6.28), amp:rnd(10,30),
+        size:rnd(em.s0||20, em.s1||34)*z, rot:em.norot?0:rnd(-.4,.4), vr:em.norot?0:rnd(-.8,.8),
+        ch:pick(em.emojis), up, flip:em.flip});
+      break;
+    }
+    case "balloon":
+      fxParts.push({k:"b", z, x:rnd(0,W), y:warm?rnd(0,H):H+80, vy:-rnd(45,95)*z, sw:rnd(0,6.28),
+        amp:rnd(12,26), r:rnd(20,30)*z, col:pick(em.colors)});
+      break;
+    case "lantern": // lanterna flutuante
+      fxParts.push({k:"l", z, x:rnd(0,W), y:warm?rnd(H*.3,H):H+40, vy:-rnd(18,34)*z, sw:rnd(0,6.28),
+        amp:rnd(8,18), s:rnd(14,22)*z});
+      break;
+    case "hop": { // anda/pula de um lado a outro perto do chão, sempre de pé
+      const dir = Math.random()<.5 ? 1 : -1, y0 = H - rnd(30,150), zz = .55 + ((y0-(H-150))/120)*.65;
+      fxParts.push({k:"h", z:zz, x:warm?rnd(0,W):(dir>0?-40:W+40), y:y0, vx:dir*rnd(em.v0||30,em.v1||60)*zz,
+        ph:rnd(0,6.28), sp:rnd(em.sp0||5,em.sp1||9), hh:em.h||14, size:rnd(em.s0||26,em.s1||36)*zz, ch:pick(em.emojis)});
+      break;
+    }
+    case "flag": // bandeirinha
+      fxParts.push({k:"bf", z, x:rnd(0,W), y:warm?rnd(0,H):-30, vy:rnd(50,95)*z, sw:rnd(0,6.28),
+        amp:rnd(14,28), w:rnd(30,44)*z, rot:rnd(-.3,.3), st:em.st});
+      break;
+    case "petal": // pétala
+      fxParts.push({k:"pt", z, x:rnd(0,W), y:warm?rnd(0,H):-20, vy:rnd(35,75)*z, sw:rnd(0,6.28),
+        amp:rnd(12,30), s:rnd(7,12)*z, rot:rnd(0,6.28), vr:rnd(-2,2), col:pick(em.colors),
+        land:em.land, g:H-rnd(8,70)});
+      break;
+    case "snow":
+      fxParts.push({k:"s", z, x:rnd(0,W), y:warm?rnd(0,H):-8, vy:rnd(25,70)*z,
+        r:rnd(1.5,4.2)*z, sw:rnd(0,6.28), amp:rnd(6,20)});
+      break;
+    case "firework":
+      fxParts.push({k:"r", x:rnd(W*.15,W*.85), y:H+10, ty:rnd(H*.12,H*.45),
+        vy:-rnd(380,480), col:pick(em.colors), colors:em.colors, tr:[]});
+      break;
+    case "firefly": {
+      const l = rnd(7,12);
+      fxParts.push({k:"v", x:rnd(0,W), y:rnd(H*.2,H), a:rnd(0,6.28), sp:rnd(12,35),
+        r:rnd(2.5,5), life:l, max:l});
+      break;
+    }
+  }
+}
+
+function fxStep(p, dt){
+  const c = fxCtx, al = .45 + .45*(p.z||1)/1.2;
+  switch(p.k){
+    case "c": { // confete: gira em 3D e brilha ao virar
+      p.sw += dt*3; p.y += p.vy*dt; p.x += (p.vx + fxWind*p.z)*dt + Math.sin(p.sw)*.6; p.rot += p.vr*dt;
+      const fl = Math.cos(p.rot*2);
+      c.save(); c.translate(p.x,p.y); c.rotate(p.rot); c.scale(1, fl);
+      c.globalAlpha = al*(.65 + .35*Math.abs(fl)); c.fillStyle = p.col; c.fillRect(-p.w/2,-p.h/2,p.w,p.h); c.restore();
+      return p.y < fxH+20;
+    }
+    case "w": { // serpentina ondulando
+      p.ph += dt*2.4; p.y += p.vy*dt; p.bx += fxWind*dt;
+      p.pts.push({x:p.bx + Math.sin(p.ph)*30, y:p.y}); if(p.pts.length > 16) p.pts.shift();
+      c.save(); c.strokeStyle = p.col; c.lineCap = "round"; c.lineWidth = 3*p.z;
+      for(let i=1;i<p.pts.length;i++){
+        c.globalAlpha = al*i/p.pts.length;
+        c.beginPath(); c.moveTo(p.pts[i-1].x,p.pts[i-1].y); c.lineTo(p.pts[i].x,p.pts[i].y); c.stroke();
+      }
+      c.restore();
+      return p.y < fxH+60;
+    }
+    case "e": { // emoji caindo/subindo com vento, profundidade e giro 3D
+      p.sw += dt*1.5; p.y += p.vy*dt; p.rot += p.vr*dt; p.x += fxWind*p.z*.6*dt;
+      c.save(); c.translate(p.x + Math.sin(p.sw)*p.amp, p.y); c.rotate(p.rot);
+      if(p.flip) c.scale(.35 + .65*Math.abs(Math.cos(p.sw*2)), 1);
+      c.font = p.size+"px "+EMOJI_FONT; c.textAlign = "center"; c.textBaseline = "middle";
+      c.globalAlpha = al + .05; c.fillText(p.ch,0,0); c.restore();
+      return p.up ? p.y > -60 : p.y < fxH+60;
+    }
+    case "b": { // balão de verdade: brilho, nó e fio balançando
+      p.sw += dt*1.2; p.y += p.vy*dt; p.x += fxWind*.5*dt;
+      const x = p.x + Math.sin(p.sw)*p.amp, r = p.r;
+      c.save(); c.translate(x,p.y); c.rotate(Math.sin(p.sw)*.12); c.globalAlpha = .95;
+      c.strokeStyle = "rgba(255,255,255,.55)"; c.lineWidth = 1; c.beginPath();
+      c.moveTo(0,r*1.1); c.quadraticCurveTo(Math.sin(p.sw*2)*8, r*2.2, Math.sin(p.sw)*4, r*3.4); c.stroke();
+      c.fillStyle = p.col; c.beginPath(); c.ellipse(0,0,r*.85,r,0,0,6.283); c.fill();
+      const g = c.createRadialGradient(-r*.35,-r*.4,r*.05,0,0,r*1.15);
+      g.addColorStop(0,"rgba(255,255,255,.8)"); g.addColorStop(.35,"rgba(255,255,255,0)"); g.addColorStop(1,"rgba(0,0,0,.3)");
+      c.fillStyle = g; c.beginPath(); c.ellipse(0,0,r*.85,r,0,0,6.283); c.fill();
+      c.fillStyle = p.col; c.beginPath(); c.moveTo(0,r*.98); c.lineTo(-r*.18,r*1.22); c.lineTo(r*.18,r*1.22); c.closePath(); c.fill();
+      c.restore();
+      return p.y > -r*4;
+    }
+    case "l": { // lanterna acesa subindo, com luz tremulando
+      p.sw += dt*.8; p.y += p.vy*dt; p.x += fxWind*.3*dt;
+      const x = p.x + Math.sin(p.sw)*p.amp, s = p.s, fl = .85 + .15*Math.sin(p.sw*9 + p.z*5);
+      const g = c.createRadialGradient(x,p.y,0,x,p.y,s*4);
+      g.addColorStop(0,"rgba(255,190,90,"+.55*fl+")"); g.addColorStop(1,"rgba(255,140,40,0)");
+      c.fillStyle = g; c.beginPath(); c.arc(x,p.y,s*4,0,6.283); c.fill();
+      c.fillStyle = "rgba(255,205,120,"+.95*fl+")"; c.beginPath();
+      c.moveTo(x-s*.5,p.y-s*.6); c.lineTo(x+s*.5,p.y-s*.6); c.lineTo(x+s*.38,p.y+s*.6); c.lineTo(x-s*.38,p.y+s*.6);
+      c.closePath(); c.fill();
+      return p.y > -s*5;
+    }
+    case "h": { // personagem de pé andando/pulando
+      p.ph += dt*p.sp; p.x += p.vx*dt;
+      c.save(); c.globalAlpha = al + .05; c.font = p.size+"px "+EMOJI_FONT; c.textAlign = "center"; c.textBaseline = "middle";
+      c.fillText(p.ch, p.x, p.y - Math.abs(Math.sin(p.ph))*p.hh); c.restore();
+      return p.vx > 0 ? p.x < fxW+60 : p.x > -60;
+    }
+    case "bf": { // bandeirinha do Brasil tremulando num palitinho
+      p.sw += dt*2; p.y += p.vy*dt; p.x += fxWind*p.z*.6*dt;
+      const w = p.w, h = w*.7, x = p.x + Math.sin(p.sw*.7)*p.amp;
+      c.save(); c.translate(x,p.y); c.rotate(Math.sin(p.sw*.7)*.25 + p.rot*.3);
+      c.globalAlpha = .5 + .45*p.z/1.2;
+      c.fillStyle = "#c9a36b"; c.fillRect(-w/2-2,-h/2,2,h*1.5);
+      c.transform(1, Math.sin(p.sw*2)*.12, 0, 1, 0, 0); // tremular ao vento
+      if(p.st === "inc"){ // bandeira da Inconfidência Mineira: triângulo vermelho em fundo branco
+        c.fillStyle = "#f6f6f0"; c.fillRect(-w/2,-h/2,w,h); c.fillStyle = "#c8102e"; c.beginPath();
+        c.moveTo(0,-h*.38); c.lineTo(-w*.28,h*.3); c.lineTo(w*.28,h*.3); c.closePath(); c.fill();
+      } else {
+      c.fillStyle = "#009c3b"; c.fillRect(-w/2,-h/2,w,h);
+      c.fillStyle = "#ffdf00"; c.beginPath(); c.moveTo(0,-h*.4); c.lineTo(w*.4,0); c.lineTo(0,h*.4); c.lineTo(-w*.4,0); c.closePath(); c.fill();
+      c.fillStyle = "#002776"; c.beginPath(); c.arc(0,0,h*.22,0,6.283); c.fill();
+      c.strokeStyle = "#fff"; c.lineWidth = Math.max(1,h*.05); c.beginPath(); c.arc(0,h*.06,h*.17,Math.PI*1.1,Math.PI*1.9); c.stroke();
+      }
+      c.restore();
+      return p.y < fxH+60;
+    }
+    case "pt": { // pétala tombando e virando; pode pousar no chão e formar o "tapete"
+      let a = .55 + .4*p.z/1.2, sy = 1;
+      if(p.down){ p.t += dt; a *= Math.max(0, 1 - p.t/10); sy = .35; }
+      else {
+        p.sw += dt*1.4; p.y += p.vy*dt; p.rot += p.vr*dt; p.x += fxWind*p.z*.7*dt;
+        if(p.land && p.y >= p.g){ p.down = true; p.t = 0; p.x += Math.sin(p.sw)*p.amp; }
+      }
+      const x = p.down ? p.x : p.x + Math.sin(p.sw)*p.amp, s = p.s;
+      c.save(); c.translate(x,p.y); c.rotate(p.rot); c.scale(p.down ? 1 : .4 + .6*Math.abs(Math.cos(p.sw*1.6)), sy);
+      c.globalAlpha = a; c.fillStyle = p.col; c.beginPath(); c.ellipse(0,0,s*.55,s,0,0,6.283); c.fill();
+      const g = c.createLinearGradient(0,-s,0,s); g.addColorStop(0,"rgba(255,255,255,.35)"); g.addColorStop(1,"rgba(0,0,0,.18)");
+      c.fillStyle = g; c.fill(); c.restore();
+      return p.down ? p.t < 10 : p.y < fxH+30;
+    }
+    case "s": { // neve macia, com vento e profundidade
+      p.sw += dt; p.y += p.vy*dt; p.x += fxWind*p.z*dt;
+      const x = p.x + Math.sin(p.sw)*p.amp;
+      c.globalAlpha = al; c.fillStyle = "#fff"; c.beginPath(); c.arc(x,p.y,p.r,0,6.283); c.fill();
+      c.globalAlpha = al*.25; c.beginPath(); c.arc(x,p.y,p.r*2,0,6.283); c.fill(); c.globalAlpha = 1;
+      return p.y < fxH+10;
+    }
+    case "r": { // foguete com rastro brilhante e estouro com clarão
+      p.y += p.vy*dt; p.tr.push(p.y); if(p.tr.length > 12) p.tr.shift();
+      c.save(); c.globalCompositeOperation = "lighter";
+      p.tr.forEach((ty,i)=>{
+        c.fillStyle = "rgba(255,215,150,"+(i/p.tr.length*.8)+")";
+        c.beginPath(); c.arc(p.x + rnd(-1,1), ty+8, 1.7, 0, 6.283); c.fill();
+      });
+      c.restore();
+      if(p.y <= p.ty){
+        const ring = Math.random() < .4, n = ring ? 56 : 72, sp0 = rnd(120,230);
+        for(let i=0;i<n;i++){
+          const a = i/n*6.283 + rnd(-.04,.04), sp = ring ? sp0 : sp0*rnd(.25,1), life = rnd(1.3,2.2);
+          fxParts.push({k:"f", x:p.x, y:p.y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life, max:life,
+            tw:Math.random() < .35, col: Math.random() < .2 ? pick(p.colors) : p.col});
+        }
+        fxParts.push({k:"g", x:p.x, y:p.y, life:.5, max:.5, col:p.col});
+        return false;
+      }
+      return true;
+    }
+    case "f": { // faísca: arrasto do ar, gravidade, cintila e apaga
+      p.vx *= 1 - 1.1*dt; p.vy = p.vy*(1 - 1.1*dt) + 90*dt;
+      p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt;
+      let a = Math.pow(Math.max(0,p.life/p.max), .7);
+      if(p.tw) a *= .5 + .5*Math.sin(p.life*40);
+      c.save(); c.globalCompositeOperation = "lighter"; c.globalAlpha = a;
+      c.strokeStyle = p.col; c.lineWidth = 2; c.lineCap = "round";
+      c.beginPath(); c.moveTo(p.x,p.y); c.lineTo(p.x - p.vx*.05, p.y - p.vy*.05); c.stroke();
+      c.fillStyle = "#fff"; c.beginPath(); c.arc(p.x,p.y,1.2,0,6.283); c.fill(); c.restore();
+      return p.life > 0;
+    }
+    case "g": { // clarão da explosão iluminando o céu
+      p.life -= dt; const t = Math.max(0,p.life/p.max);
+      const g = c.createRadialGradient(p.x,p.y,0,p.x,p.y,230);
+      g.addColorStop(0,p.col); g.addColorStop(1,"rgba(0,0,0,0)");
+      c.save(); c.globalCompositeOperation = "lighter"; c.globalAlpha = .28*t;
+      c.fillStyle = g; c.beginPath(); c.arc(p.x,p.y,230,0,6.283); c.fill(); c.restore();
+      return p.life > 0;
+    }
+    case "v": { // vagalume
+      p.a += rnd(-1,1)*dt*3;
+      p.x += Math.cos(p.a)*p.sp*dt; p.y += Math.sin(p.a)*p.sp*dt - 4*dt; p.life -= dt;
+      const t = 1 - p.life/p.max;
+      const a2 = Math.max(0, Math.sin(Math.PI*t) * (.6 + .4*Math.sin(t*p.max*4)));
+      const g = c.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*4);
+      g.addColorStop(0,"rgba(255,240,150,"+a2+")"); g.addColorStop(1,"rgba(255,240,150,0)");
+      c.fillStyle = g; c.beginPath(); c.arc(p.x,p.y,p.r*4,0,6.283); c.fill();
+      return p.life > 0;
+    }
+  }
+  return false;
+}
+
+function fxDrawRays(t, col){
+  const c = fxCtx, cx = fxW*.5, cy = -fxH*.1, len = fxH*1.4, spread = .07;
+  for(let i=0;i<7;i++){
+    const a = Math.PI/2 + Math.sin(t*.0004 + i)*.35 + (i-3)*.22;
+    const g = c.createLinearGradient(cx,cy,cx+Math.cos(a)*len,cy+Math.sin(a)*len);
+    g.addColorStop(0,col+"0.35)"); g.addColorStop(1,col+"0)");
+    c.fillStyle = g; c.beginPath(); c.moveTo(cx,cy);
+    c.lineTo(cx+Math.cos(a-spread)*len, cy+Math.sin(a-spread)*len);
+    c.lineTo(cx+Math.cos(a+spread)*len, cy+Math.sin(a+spread)*len);
+    c.closePath(); c.fill();
+  }
+}
+
+function fxLoop(ts){
+  const dt = Math.min((ts - fxLast)/1000 || 0, .05); fxLast = ts;
+  fxCtx.clearRect(0,0,fxW,fxH);
+  fxWind = Math.sin(ts*.0003)*22 + Math.sin(ts*.0011)*9; // vento que muda com o tempo
+
+  fxRayA += ((fxCur && fxCur.rays ? 1 : 0) - fxRayA) * Math.min(1, dt*1.5);
+  if(fxRayCol && fxRayA > .01){
+    fxCtx.globalAlpha = fxRayA; fxDrawRays(ts, fxRayCol); fxCtx.globalAlpha = 1;
+  }
+
+  if(fxCur){
+    fxCur.emit.forEach((em,i)=>{
+      fxAcc[i] = (fxAcc[i]||0) + em.rate*dt;
+      while(fxAcc[i] >= 1){ fxAcc[i]--; fxSpawn(em); }
+    });
+  }
+
+  fxParts = fxParts.filter(p => fxStep(p, dt));
+
+  if(!fxCur && !fxParts.length && fxRayA < .02){
+    fxRaf = null; fxCtx.clearRect(0,0,fxW,fxH); return;
+  }
+  fxRaf = requestAnimationFrame(fxLoop);
+}
+
+function setFx(key){
+  if(key === fxKey) return;
+  fxKey = key;
+  fxCur = key ? (FX_DEFS[key] || FX_TEMAS[key]) : null;
+  fxAcc = {};
+  fxParts = []; fxRayA = 0; // troca de verdade: some a animação anterior na hora
+  document.body.classList.toggle("fx-on", !!key);
+  if(fxCur){
+    // já começa com a tela "cheia" pra não demorar a aparecer
+    fxCur.emit.forEach(em=>{
+      if(["confetti","ribbon","fall","rise","balloon","lantern","snow","flag","petal","hop"].includes(em.k)){
+        for(let i=0;i<Math.round(em.rate*3);i++) fxSpawn(em, true);
+      }
+    });
+    if(fxCur.rays) fxRayCol = fxCur.rays;
+  }
+  if(!fxRaf){ fxLast = performance.now(); fxRaf = requestAnimationFrame(fxLoop); }
+}
+
+// toque num dia = o marcador vai pra esse dia e a animação vai junto
+// (feriado/aniversário = a animação dele; dia comum = sem animação)
+document.getElementById("daysGrid").addEventListener("click", e=>{
+  const cell = e.target.closest(".day-cell");
+  if(!cell || cell.classList.contains("empty")) return;
+  fxSel = new Date(currentYear, currentMonth, Number(cell.dataset.day));
+  document.querySelectorAll(".day-cell.fx-sel").forEach(c=>c.classList.remove("fx-sel"));
+  cell.classList.add("fx-sel");
+  setFx(fxKeyForDate(fxSel));
+});
+
+// ---------- Navegação: swipe ----------
+let touchStartX = 0;
+const card = document.querySelector(".calendar-card");
+card.addEventListener("touchstart", e=>{ touchStartX = e.changedTouches[0].screenX; });
+card.addEventListener("touchend", e=>{
+  const dx = e.changedTouches[0].screenX - touchStartX;
+  if(Math.abs(dx) > 50){
+    if(dx < 0) changeMonth(1); else changeMonth(-1);
+  }
+});
+
+function changeMonth(delta){
+  currentMonth += delta;
+  if(currentMonth<0){ currentMonth=11; currentYear--; }
+  if(currentMonth>11){ currentMonth=0; currentYear++; }
+  renderCalendar();
+}
+
+document.getElementById("todayBtn").addEventListener("click", ()=>{
+  const today = new Date();
+  currentYear = today.getFullYear();
+  currentMonth = today.getMonth();
+  fxSel = null;
+  renderCalendar();
+});
+
+function normalizeText(s){
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+}
+
+document.getElementById("searchBtn").addEventListener("click", ()=>{
+  const input = prompt("Pesquisar mês/ano (ex: 3/2027) ou nome de feriado (ex: Natal):");
+  if(!input) return;
+  const trimmed = input.trim();
+  const parts = trimmed.split("/");
+
+  if(parts.length===2 && !isNaN(parseInt(parts[0])) && !isNaN(parseInt(parts[1]))){
+    const m = parseInt(parts[0])-1, y = parseInt(parts[1]);
+    if(!isNaN(m) && !isNaN(y) && m>=0 && m<=11){
+      currentMonth=m; currentYear=y; renderCalendar();
+      return;
+    }
+  }
+
+  // busca por nome de feriado, sempre no ano atual do calendário
+  const entries = Object.entries(getHolidays(currentYear)).concat(Object.entries(getCommemorative(currentYear)));
+  const target = normalizeText(trimmed);
+  let found = null, foundName = "";
+  for(const [key,name] of entries){
+    if(normalizeText(name).includes(target)){ found = key; foundName = name; break; }
+  }
+  if(found){
+    const [y,m,d] = found.split("-").map(Number);
+    currentYear = y; currentMonth = m-1; fxSel = new Date(y, m-1, d); renderCalendar();
+    alert(`${foundName} — ${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}/${y}`);
+  } else {
+    alert("Não encontrei nada com esse nome em "+currentYear+".");
+  }
+});
+
+renderLedgerLines();
+renderProfileIcon();
+renderCalendar();
+
+// ---------- Funciona sem internet ----------
+// O app não depende de nada externo. Se estiver hospedado (http/https), o sw.js guarda uma cópia pra abrir offline.
+if("serviceWorker" in navigator && /^https?:$/.test(location.protocol)){
+  window.addEventListener("load", ()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+}
+</script>
+</body>
+</html>
